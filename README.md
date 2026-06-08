@@ -158,5 +158,5 @@ GNU GENERAL PUBLIC LICENSE Version 3
 ## Changelog
 
 Se añadió un registro de cambios (changelog) a este `README.md`. Consulta la última versión y notas de la release en:
-- [v0.1.0 - CHANGE LOG](CHANGELOG.md)
-- [v0.1.0 - Release notes](https://github.com/x-name15/wachiman-cli/releases/tag/0.1.0)
+- [v0.2.0 - CHANGE LOG](CHANGELOG.md)
+- [v0.2.0 - Release notes](https://github.com/x-name15/wachiman-cli/releases/tag/0.2.0)
