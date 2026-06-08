@@ -8,7 +8,7 @@ Herramienta CLI escrita en Go para monitorear y gestionar contenedores Docker de
 
 ---
 
-**Última versión:** [v0.2.0](https://github.com/x-name15/wachiman-cli/releases/tag/0.2.0)
+**Última versión:** [v1.0.0](https://github.com/x-name15/wachiman-cli/releases/tag/1.0.0)
 
 
 ## Requisitos
@@ -158,5 +158,5 @@ GNU GENERAL PUBLIC LICENSE Version 3
 ## Changelog
 
 Se añadió un registro de cambios (changelog) a este `README.md`. Consulta la última versión y notas de la release en:
-- [v0.2.0 - CHANGE LOG](CHANGELOG.md)
-- [v0.2.0 - Release notes](https://github.com/x-name15/wachiman-cli/releases/tag/0.2.0)
+- [v1.0.0 - CHANGE LOG](CHANGELOG.md)
+- [v1.0.0 - Release notes](https://github.com/x-name15/wachiman-cli/releases/tag/1.0.0)
