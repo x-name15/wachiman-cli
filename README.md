@@ -8,6 +8,9 @@ Herramienta CLI escrita en Go para monitorear y gestionar contenedores Docker de
 
 ---
 
+**Última versión:** [v0.1.0](https://github.com/x-name15/wachiman-cli/releases/tag/0.1.0)
+
+
 ## Requisitos
 
 - Go 1.21+
@@ -134,7 +137,7 @@ wachiman prune -f     # sin confirmación
 wachiman prune --force
 ```
 
-> ⚠️ Esta operación es irreversible. Usa `--force` con cuidado.
+>  Esta operación es irreversible. Usa `--force` con cuidado.
 
 ---
 
@@ -148,4 +151,12 @@ wachiman prune --force
 
 ## Licencia
 
-GNU
+GNU GENERAL PUBLIC LICENSE Version 3
+
+---
+
+## Changelog
+
+Se añadió un registro de cambios (changelog) a este `README.md`. Consulta la última versión y notas de la release en:
+- [v0.1.0 - CHANGE LOG](CHANGELOG.md)
+- [v0.1.0 - Release notes](https://github.com/x-name15/wachiman-cli/releases/tag/0.1.0)
