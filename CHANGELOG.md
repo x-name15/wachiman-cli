@@ -3,6 +3,29 @@
 Todos los cambios notables de este proyecto se documentan aquí.
 
 ---
+## [1.0.0] - 2026-06-08 — "Ahora si, ya estoy listo pa chambear"
+
+### Añadido
+  - Comando `config` y paquete interno `config` para gestionar preferencias locales:
+  - Subcomandos: `config get`, `config set [key] [value]`, `config reset`.
+  - Opciones de configuración: `watch_interval`, `default_tail`, `output_format`.
+
+### Cambios / Mejoras
+  - `watch`: ahora respeta `watch_interval` desde la configuración si `--interval` no fue pasado.
+  - `ps`: añadido flag `--running` y `--stopped` para filtrar, y `--output json` para salida en formato JSON.
+  - `stats`: añadido `--output json` y formateo/colorado de porcentajes de CPU y memoria.
+  - `logs`: cuando no se especifica `--tail`, ahora usa `default_tail` desde la configuración.
+  - `main`: registro del `ConfigCmd` en el comando raíz y mejoras en el banner/ayuda.
+
+  ### Archivos modificados
+  - `cmd/stats.go` — soporte `--output json`, coloreo de porcentajes.
+  - `cmd/ps.go` — filtros `--running`/`--stopped`, `--output json` y salida tabulada.
+  - `cmd/logs.go` — uso de `default_tail` desde la configuración cuando `--tail` no fue provisto.
+  - `cmd/config.go` — nuevo comando para gestionar la configuración del usuario.
+  - `config/config.go` — nuevo paquete para carga/guardado de config en `~/.wachiman/config.json`.
+  - `main.go` — registro de `ConfigCmd` y banner/ayuda mejorada.
+
+
 ## [0.2.0] - 2026-06-08 — "Seño, pan con palta y su quinua con manzana"
 
 ### Añadido
@@ -57,9 +80,3 @@ Primera release de Wachiman CLI. Mi causa ha despertado.
 - Colores en toda la interfaz via `fatih/color`
 - Output tabulado y alineado via `text/tabwriter`
 
-
-# Changelog
-
-Todos los cambios notables de este proyecto se documentan aquí.
-
----

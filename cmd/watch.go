@@ -1,20 +1,22 @@
 package cmd
 
 import (
-    "fmt"
-    "os"
-    "os/exec"
-    "os/signal"
-    "syscall"
-    "text/tabwriter"
-    "time"
-    "github.com/fatih/color"
-    "github.com/spf13/cobra"
-    "wachiman/docker"
+	"fmt"
+	"os"
+	"os/exec"
+	"os/signal"
+	"syscall"
+	"text/tabwriter"
+	"time"
+	"github.com/fatih/color"
+	"github.com/spf13/cobra"
+	"wachiman/config"
+	"wachiman/docker"
 )
 
 var watchInterval int
 var sparks = []rune{'▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'}
+
 type history struct {
 	CPU []float64
 	Mem []float64
@@ -24,6 +26,16 @@ var WatchCmd = &cobra.Command{
 	Use:   "watch",
 	Short: "Monitor en tiempo real de contenedores",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg, err := config.Load()
+		if err != nil {
+			return err
+		}
+
+		// Si el usuario no pasó --interval explícitamente, usar el de la config
+		if !cmd.Flags().Changed("interval") {
+			watchInterval = cfg.WatchInterval
+		}
+
 		client, err := docker.New()
 		if err != nil {
 			return err
@@ -43,7 +55,7 @@ var WatchCmd = &cobra.Command{
 			case <-ticker.C:
 				draw(client, hist)
 			case <-sig:
-				fmt.Print(clearScreen())
+				clearScreen()
 				fmt.Println("wachiman saliendo...")
 				return nil
 			}

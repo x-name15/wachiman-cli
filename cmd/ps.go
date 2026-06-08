@@ -1,10 +1,10 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"text/tabwriter"
-
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"wachiman/docker"
@@ -12,6 +12,7 @@ import (
 
 var filterRunning bool
 var filterStopped bool
+var outputFormat string
 
 var PsCmd = &cobra.Command{
 	Use:   "ps",
@@ -27,7 +28,6 @@ var PsCmd = &cobra.Command{
 			return err
 		}
 
-		// Filtrar según flags
 		filtered := make([]docker.Container, 0)
 		for _, c := range containers {
 			if filterRunning && !c.Running {
@@ -42,6 +42,16 @@ var PsCmd = &cobra.Command{
 
 		if len(containers) == 0 {
 			fmt.Println("No hay contenedores.")
+			return nil
+		}
+
+		// JSON output
+		if outputFormat == "json" {
+			data, err := json.MarshalIndent(containers, "", "  ")
+			if err != nil {
+				return fmt.Errorf("error serializando JSON: %w", err)
+			}
+			fmt.Println(string(data))
 			return nil
 		}
 
@@ -68,4 +78,5 @@ var PsCmd = &cobra.Command{
 func init() {
 	PsCmd.Flags().BoolVar(&filterRunning, "running", false, "Mostrar solo contenedores activos")
 	PsCmd.Flags().BoolVar(&filterStopped, "stopped", false, "Mostrar solo contenedores parados")
+	PsCmd.Flags().StringVarP(&outputFormat, "output", "o", "table", "Formato de salida: table, json")
 }

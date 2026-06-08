@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"fmt"
 	"github.com/spf13/cobra"
+	"wachiman/config"
 	"wachiman/docker"
 )
 
@@ -12,6 +14,15 @@ var LogsCmd = &cobra.Command{
 	Short: "Muestra los logs de un contenedor",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg, err := config.Load()
+		if err != nil {
+			return err
+		}
+
+		if !cmd.Flags().Changed("tail") {
+			tail = fmt.Sprintf("%d", cfg.DefaultTail)
+		}
+
 		client, err := docker.New()
 		if err != nil {
 			return err

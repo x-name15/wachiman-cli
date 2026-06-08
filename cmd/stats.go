@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -8,6 +9,8 @@ import (
 	"github.com/spf13/cobra"
 	"wachiman/docker"
 )
+
+var statsOutputFormat string
 
 var StatsCmd = &cobra.Command{
 	Use:   "stats",
@@ -25,6 +28,15 @@ var StatsCmd = &cobra.Command{
 
 		if len(stats) == 0 {
 			fmt.Println("No hay contenedores corriendo.")
+			return nil
+		}
+
+		if statsOutputFormat == "json" {
+			data, err := json.MarshalIndent(stats, "", "  ")
+			if err != nil {
+				return fmt.Errorf("error serializando JSON: %w", err)
+			}
+			fmt.Println(string(data))
 			return nil
 		}
 
@@ -57,4 +69,8 @@ var StatsCmd = &cobra.Command{
 		w.Flush()
 		return nil
 	},
+}
+
+func init() {
+	StatsCmd.Flags().StringVarP(&statsOutputFormat, "output", "o", "table", "Formato de salida: table, json")
 }

@@ -43,6 +43,7 @@ func main() {
 	root.AddCommand(cmd.WatchCmd)
 	root.AddCommand(cmd.TopCmd)
 	root.AddCommand(cmd.PruneCmd)
+	root.AddCommand(cmd.ConfigCmd)
 
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
