@@ -3,6 +3,15 @@
 Todos los cambios notables de este proyecto se documentan aquí.
 
 ---
+## [0.2.0] - 2026-06-08 — "Seño, pan con palta y su quinua con manzana"
+
+### Añadido
+
+- `wachiman watch` ahora muestra sparklines de tendencia con caracteres Unicode `▁▂▃▄▅▆▇█`
+  - Historial de los últimos 10 ticks por contenedor en memoria
+  - Color según el último valor: verde < 50%, amarillo 50–80%, rojo > 80%
+- Header dinámico en `wachiman watch` con conteo de contenedores corriendo vs parados
+- Fix de pantalla en Windows — `cls` en vez de escape codes ANSI para limpiar correctamente
 
 ## [0.1.0] - 2026-06-08 — "Oe wachiman, apura p"
 
@@ -47,3 +56,10 @@ Primera release de Wachiman CLI. Mi causa ha despertado.
 - Banner ASCII al ejecutar `wachiman` sin argumentos
 - Colores en toda la interfaz via `fatih/color`
 - Output tabulado y alineado via `text/tabwriter`
+
+
+# Changelog
+
+Todos los cambios notables de este proyecto se documentan aquí.
+
+---

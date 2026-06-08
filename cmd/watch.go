@@ -1,19 +1,24 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
-	"text/tabwriter"
-	"time"
-
-	"github.com/fatih/color"
-	"github.com/spf13/cobra"
-	"wachiman/docker"
+    "fmt"
+    "os"
+    "os/exec"
+    "os/signal"
+    "syscall"
+    "text/tabwriter"
+    "time"
+    "github.com/fatih/color"
+    "github.com/spf13/cobra"
+    "wachiman/docker"
 )
 
 var watchInterval int
+var sparks = []rune{'▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'}
+type history struct {
+	CPU []float64
+	Mem []float64
+}
 
 var WatchCmd = &cobra.Command{
 	Use:   "watch",
@@ -29,23 +34,25 @@ var WatchCmd = &cobra.Command{
 
 		ticker := time.NewTicker(time.Duration(watchInterval) * time.Second)
 		defer ticker.Stop()
-		draw(client)
+
+		hist := make(map[string]*history)
+		draw(client, hist)
 
 		for {
 			select {
 			case <-ticker.C:
-				draw(client)
+				draw(client, hist)
 			case <-sig:
-				fmt.Print("\033[H\033[2J")
-				fmt.Println("Wachiman saliendo...")
+				fmt.Print(clearScreen())
+				fmt.Println("wachiman saliendo...")
 				return nil
 			}
 		}
 	},
 }
 
-func draw(client *docker.Client) {
-	fmt.Print("\033[H\033[2J")
+func draw(client *docker.Client, hist map[string]*history) {
+	fmt.Print(clearScreen())
 
 	overview, err := client.Overview()
 	if err != nil {
@@ -58,7 +65,6 @@ func draw(client *docker.Client) {
 	red := color.New(color.FgRed).SprintFunc()
 	cyan := color.New(color.FgCyan).SprintFunc()
 
-	// Contar corriendo vs parados
 	running := 0
 	stopped := 0
 	for _, c := range overview {
@@ -79,7 +85,7 @@ func draw(client *docker.Client) {
 	)
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-	fmt.Fprintln(w, bold("CONTAINER ID\tNAME\tIMAGE\tSTATUS\tCPU %\tMEM %\tPORTS"))
+	fmt.Fprintln(w, bold("CONTAINER ID\tNAME\tIMAGE\tSTATUS\tCPU\tMEM\tPORTS"))
 
 	for _, c := range overview {
 		status := green(c.Status)
@@ -87,12 +93,25 @@ func draw(client *docker.Client) {
 			status = red(c.Status)
 		}
 
-		cpuStr := fmt.Sprintf("%s %5.1f%%", renderBar(c.CPU, 10), c.CPU)
-		memStr := fmt.Sprintf("%s %5.1f%%", renderBar(c.Memory, 10), c.Memory)
+		if _, ok := hist[c.Name]; !ok {
+			hist[c.Name] = &history{}
+		}
+		h := hist[c.Name]
 
-		if !c.Running {
-			cpuStr = "-"
-			memStr = "-"
+		if c.Running {
+			h.CPU = appendCapped(h.CPU, c.CPU, 10)
+			h.Mem = appendCapped(h.Mem, c.Memory, 10)
+		}
+
+		cpuStr := "-"
+		memStr := "-"
+		if c.Running {
+			cpuBar := renderBar(c.CPU, 8)
+			memBar := renderBar(c.Memory, 8)
+			cpuSpark := renderSparkline(h.CPU)
+			memSpark := renderSparkline(h.Mem)
+			cpuStr = fmt.Sprintf("%s %s %4.1f%%", cpuSpark, cpuBar, c.CPU)
+			memStr = fmt.Sprintf("%s %s %4.1f%%", memSpark, memBar, c.Memory)
 		}
 
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
@@ -101,8 +120,39 @@ func draw(client *docker.Client) {
 	w.Flush()
 }
 
-func init() {
-	WatchCmd.Flags().IntVarP(&watchInterval, "interval", "i", 3, "Intervalo de refresco en segundos")
+func appendCapped(slice []float64, val float64, maxLen int) []float64 {
+	slice = append(slice, val)
+	if len(slice) > maxLen {
+		slice = slice[len(slice)-maxLen:]
+	}
+	return slice
+}
+
+func renderSparkline(values []float64) string {
+	if len(values) == 0 {
+		return ""
+	}
+
+	result := ""
+	for _, v := range values {
+		idx := int(v / 100.0 * float64(len(sparks)-1))
+		if idx >= len(sparks) {
+			idx = len(sparks) - 1
+		}
+		if idx < 0 {
+			idx = 0
+		}
+		result += string(sparks[idx])
+	}
+
+	// Color según el último valor
+	last := values[len(values)-1]
+	if last > 80 {
+		return color.RedString(result)
+	} else if last > 50 {
+		return color.YellowString(result)
+	}
+	return color.GreenString(result)
 }
 
 func renderBar(percent float64, width int) string {
@@ -120,11 +170,21 @@ func renderBar(percent float64, width int) string {
 		bar += "░"
 	}
 
-	// Color según porcentaje
 	if percent > 80 {
 		return color.RedString(bar)
 	} else if percent > 50 {
 		return color.YellowString(bar)
 	}
 	return color.GreenString(bar)
+}
+
+func init() {
+	WatchCmd.Flags().IntVarP(&watchInterval, "interval", "i", 3, "Intervalo de refresco en segundos")
+}
+
+func clearScreen() string {
+	cmd := exec.Command("cmd", "/c", "cls")
+	cmd.Stdout = os.Stdout
+	cmd.Run()
+	return ""
 }
