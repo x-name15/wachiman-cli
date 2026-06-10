@@ -3,6 +3,28 @@
 Todos los cambios notables de este proyecto se documentan aquí.
 
 ---
+## [1.5.0] - 2026-06-10 — "Llaves y linterna, supongo que para guardar las cosas en la bodega"
+
+### Añadido
+- Nuevo comando `wachiman backup [nombre_contenedor]` para crear respaldos empaquetados en `.tar`.
+  - **Pausado inteligente (`Pause`/`Unpause`):** Pausa automáticamente el contenedor antes de copiar para prevenir la corrupción de datos y asegura su reactivación mediante `defer`, incluso si el proceso falla.
+  - **Filtro de rutas redundantes:** Algoritmo de optimización que analiza los volúmenes montados y descarta subcarpetas o subarchivos si su directorio raíz ya va a ser respaldado (ej. no duplica `/var/www/html/wp-content` si ya está respaldando `/var/www/html`).
+  - **Modo Hot Backup (`--no-pause`):** Flag para forzar el respaldo en caliente sin detener el contenedor (advirtiendo sobre posibles inconsistencias).
+- Nuevo comando `wachiman export-compose [nombre_contenedor]` para realizar ingeniería inversa y generar dinámicamente un manifiesto `docker-compose.yml` funcional mapeando puertos, variables de entorno limpias y volúmenes locales.
+- Nuevo comando `wachiman shell [nombre_contenedor]` para abrir una terminal interactiva dentro del contenedor de forma rápida, intentando usar `bash` y cayendo en `sh` si no está disponible.
+- Nuevo comando `wachiman audit [nombre_contenedor]` para realizar un análisis rápido de seguridad y optimización del contenedor (revisión de puertos expuestos, variables de entorno sensibles y usuarios ejecutores).
+
+### Cambios / Mejoras
+- Corrección y actualización del cliente en `docker/client.go` para aislar la estructura interna de `Inspect`, protegiendo el CLI contra cambios drásticos de firmas y tipos en las actualizaciones del SDK oficial de Docker.
+
+### Archivos modificados
+- `cmd/backup.go` — nuevo comando de copias de seguridad con desduplicación de rutas.
+- `cmd/export_compose.go` — nuevo comando para ingeniería inversa a docker-compose.
+- `cmd/shell.go` — nuevo comando para acceso interactivo por terminal (TTY).
+- `cmd/audit.go` — nuevo comando de auditoría y buenas prácticas.
+- `docker/client.go` — refactorización del método `Inspect` y abstracción de la estructura de volúmenes.
+- `main.go` — registro de los nuevos comandos en el CLI raíz.
+
 ## [1.0.0] - 2026-06-08 — "Ahora si, ya estoy listo pa chambear"
 
 ### Añadido

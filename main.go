@@ -44,6 +44,10 @@ func main() {
 	root.AddCommand(cmd.TopCmd)
 	root.AddCommand(cmd.PruneCmd)
 	root.AddCommand(cmd.ConfigCmd)
+	root.AddCommand(cmd.AuditCmd)
+	root.AddCommand(cmd.ShellCmd)
+	root.AddCommand(cmd.ExportComposeCmd)
+	root.AddCommand(cmd.BackupCmd)
 
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

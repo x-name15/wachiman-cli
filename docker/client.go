@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"time"
 	"github.com/moby/moby/client"
 )
@@ -24,21 +25,23 @@ type Container struct {
 }
 
 type ContainerStats struct {
-	Name    string
-	CPU     float64
-	Memory  float64
-	MemUsed string
+	Name     string
+	CPU      float64
+	Memory   float64
+	MemUsed  string
 	MemLimit string
 }
 
 type ContainerInspect struct {
-	Name   string
-	Status string
-	Image  string
-	IP 	   string
-	Ports []string
-	Volumes []string
-	Env []string
+	Name        string
+	Status      string
+	Image       string
+	IP          string
+	Ports       []string
+	Volumes     []string
+	Env         []string
+	User        string 
+	MemoryLimit int64  
 }
 
 type ContainerOverview struct {
@@ -87,42 +90,42 @@ func (c *Client) List() ([]Container, error) {
 	}
 
 	containers := make([]Container, 0, len(result.Items))
-seen := make(map[string]bool)
+	seen := make(map[string]bool)
 
-for _, r := range result.Items {
-    if seen[r.ID] {
-        continue
-    }
-    seen[r.ID] = true
+	for _, r := range result.Items {
+		if seen[r.ID] {
+			continue
+		}
+		seen[r.ID] = true
 
-    name := r.Names[0]
-    if len(name) > 0 && name[0] == '/' {
-        name = name[1:]
-    }
+		name := r.Names[0]
+		if len(name) > 0 && name[0] == '/' {
+			name = name[1:]
+		}
 
-    seenPorts := make(map[string]bool)
-    ports := ""
-    for _, p := range r.Ports {
-        if p.PublicPort != 0 {
-            entry := fmt.Sprintf("%d->%d", p.PublicPort, p.PrivatePort)
-            if !seenPorts[entry] {
-                seenPorts[entry] = true
-                if ports != "" {
-                    ports += ", "
-                }
-                ports += entry
-            }
-        }
-    }
+		seenPorts := make(map[string]bool)
+		ports := ""
+		for _, p := range r.Ports {
+			if p.PublicPort != 0 {
+				entry := fmt.Sprintf("%d->%d", p.PublicPort, p.PrivatePort)
+				if !seenPorts[entry] {
+					seenPorts[entry] = true
+					if ports != "" {
+						ports += ", "
+					}
+					ports += entry
+				}
+			}
+		}
 
-    containers = append(containers, Container{
-        ID:      r.ID[:12],
-        Name:    name,
-        Image:   r.Image,
-        Status:  r.Status,
-        Running: r.State == "running",
-        Ports:   ports,
-    	})
+		containers = append(containers, Container{
+			ID:      r.ID[:12],
+			Name:    name,
+			Image:   r.Image,
+			Status:  r.Status,
+			Running: r.State == "running",
+			Ports:   ports,
+		})
 	}
 	
 	return containers, nil
@@ -197,8 +200,6 @@ func (c *Client) Stats() ([]ContainerStats, error) {
 		}
 		defer s.Body.Close()
 
-		// Decodificamos el JSON que devuelve Docker a un map genérico
-		// porque el struct oficial cambió mucho entre versiones
 		var data map[string]interface{}
 		if err := json.NewDecoder(s.Body).Decode(&data); err != nil {
 			continue
@@ -259,7 +260,6 @@ func calcMem(data map[string]interface{}) (uint64, uint64, float64) {
 	usage := uint64(memStats["usage"].(float64))
 	limit := uint64(memStats["limit"].(float64))
 
-	// en kernels nuevos el cache se llama "file" dentro de stats
 	cache := uint64(0)
 	if stats, ok := memStats["stats"].(map[string]interface{}); ok {
 		if v, ok := stats["file"]; ok {
@@ -313,13 +313,15 @@ func (c *Client) Inspect(nameOrID string) (*ContainerInspect, error) {
 	}
 
 	return &ContainerInspect{
-		Name:    data.Container.Name[1:],
-		Status: string(data.Container.State.Status),
-		Image:   data.Container.Config.Image,
-		IP:      ip,
-		Ports:   ports,
-		Volumes: volumes,
-		Env:     env,
+		Name:        data.Container.Name[1:],
+		Status:      string(data.Container.State.Status),
+		Image:       data.Container.Config.Image,
+		IP:          ip,
+		Ports:       ports,
+		Volumes:     volumes,
+		Env:         env,
+		User:        data.Container.Config.User,
+		MemoryLimit: data.Container.HostConfig.Memory,
 	}, nil
 }
 
@@ -329,9 +331,8 @@ func (c *Client) Overview() ([]ContainerOverview, error) {
 		return nil, err
 	}
 
-	// Mapa de stats por nombre para cruzar con la lista
 	statsMap := make(map[string]ContainerStats)
-	stats, _ := c.Stats() // si falla stats, igual mostramos los contenedores
+	stats, _ := c.Stats() 
 	for _, s := range stats {
 		statsMap[s.Name] = s
 	}
@@ -364,8 +365,6 @@ func (c *Client) Top(nameOrID string) ([]ContainerProcess, error) {
 		return nil, fmt.Errorf("error obteniendo procesos de %s: %w", nameOrID, err)
 	}
 
-	// result.Titles tiene los headers, result.Processes tiene las filas
-	// buscamos los índices de las columnas que nos interesan
 	pidIdx, nameIdx, cpuIdx, memIdx := -1, -1, -1, -1
 	for i, t := range result.Titles {
 		switch t {
@@ -428,4 +427,49 @@ func (c *Client) Prune() (*PruneSummary, error) {
 	summary.SpaceReclaimed += vr.Report.SpaceReclaimed
 
 	return summary, nil
+}
+
+func (c *Client) Pause(nameOrID string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if _, err := c.cli.ContainerPause(ctx, nameOrID, client.ContainerPauseOptions{}); err != nil {
+		return fmt.Errorf("error pausando contenedor %s: %w", nameOrID, err)
+	}
+	return nil
+}
+
+func (c *Client) Unpause(nameOrID string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if _, err := c.cli.ContainerUnpause(ctx, nameOrID, client.ContainerUnpauseOptions{}); err != nil {
+		return fmt.Errorf("error despausando contenedor %s: %w", nameOrID, err)
+	}
+	return nil
+}
+
+// CopyFrom descarga un flujo de datos (tar) de una ruta interna del contenedor
+func (c *Client) CopyFrom(nameOrID, srcPath string) (io.ReadCloser, error) {
+	// Ejecuta el comando nativo 'docker cp contenedor:ruta -' 
+	// El guion '-' le indica a docker que envíe el .tar directamente al stdout (flujo de salida)
+	cmd := exec.Command("docker", "cp", fmt.Sprintf("%s:%s", nameOrID, srcPath), "-")
+	
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("error al crear el pipe de salida: %w", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("error al iniciar docker cp: %w", err)
+	}
+
+	// Retorna el flujo de lectura directo para que backup.go lo guarde
+	return stdout, nil
+}
+
+func (c *Client) Export(nameOrID string) (io.ReadCloser, error) {
+	reader, err := c.cli.ContainerExport(context.Background(), nameOrID, client.ContainerExportOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("error exportando rootfs del contenedor: %w", err)
+	}
+	return reader, nil
 }
