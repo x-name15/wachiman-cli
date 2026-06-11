@@ -71,6 +71,29 @@ type PruneSummary struct {
 	SpaceReclaimed    uint64
 }
 
+type Network struct {
+	ID         string
+	Name       string
+	Driver     string
+	Scope      string
+	Containers []NetworkContainer
+}
+
+type NetworkContainer struct {
+	Name string
+	IP   string
+}
+
+type NetworkDetail struct {
+	ID         string
+	Name       string
+	Driver     string
+	Scope      string
+	Subnet     string
+	Gateway    string
+	Internal   bool
+	Containers []NetworkContainer
+}
 
 func New() (*Client, error) {
 	cli, err := client.New(client.FromEnv)
@@ -447,22 +470,16 @@ func (c *Client) Unpause(nameOrID string) error {
 	return nil
 }
 
-// CopyFrom descarga un flujo de datos (tar) de una ruta interna del contenedor
 func (c *Client) CopyFrom(nameOrID, srcPath string) (io.ReadCloser, error) {
-	// Ejecuta el comando nativo 'docker cp contenedor:ruta -' 
-	// El guion '-' le indica a docker que envíe el .tar directamente al stdout (flujo de salida)
 	cmd := exec.Command("docker", "cp", fmt.Sprintf("%s:%s", nameOrID, srcPath), "-")
-	
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, fmt.Errorf("error al crear el pipe de salida: %w", err)
 	}
-
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("error al iniciar docker cp: %w", err)
 	}
 
-	// Retorna el flujo de lectura directo para que backup.go lo guarde
 	return stdout, nil
 }
 
@@ -472,4 +489,95 @@ func (c *Client) Export(nameOrID string) (io.ReadCloser, error) {
 		return nil, fmt.Errorf("error exportando rootfs del contenedor: %w", err)
 	}
 	return reader, nil
+}
+
+func (c *Client) ListNetworks() ([]Network, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	result, err := c.cli.NetworkList(ctx, client.NetworkListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("error listando redes: %w", err)
+	}
+
+	networks := make([]Network, 0, len(result.Items))
+	for _, n := range result.Items {
+		containers := []NetworkContainer{}
+		// Summary embebe Network, no tiene Containers — eso solo está en Inspect
+		networks = append(networks, Network{
+			ID:         n.ID[:12],
+			Name:       n.Name,
+			Driver:     n.Driver,
+			Scope:      n.Scope,
+			Containers: containers,
+		})
+	}
+	return networks, nil
+}
+
+func (c *Client) InspectNetwork(nameOrID string) (*NetworkDetail, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	result, err := c.cli.NetworkInspect(ctx, nameOrID, client.NetworkInspectOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("error inspeccionando red %s: %w", nameOrID, err)
+	}
+
+	// Los campos están en result.Network que embebe network.Inspect → network.Network
+	n := result.Network
+
+	subnet := ""
+	gateway := ""
+	if len(n.IPAM.Config) > 0 {
+		subnet = n.IPAM.Config[0].Subnet.String()
+		gateway = n.IPAM.Config[0].Gateway.String()
+	}
+
+	containers := []NetworkContainer{}
+	for _, ep := range n.Containers {
+		ip := ep.IPv4Address.Addr().String()
+		containers = append(containers, NetworkContainer{
+			Name: ep.Name,
+			IP:   ip,
+		})
+	}
+
+	return &NetworkDetail{
+		ID:         n.ID[:12],
+		Name:       n.Name,
+		Driver:     n.Driver,
+		Scope:      n.Scope,
+		Subnet:     subnet,
+		Gateway:    gateway,
+		Internal:   n.Internal,
+		Containers: containers,
+	}, nil
+}
+
+func (c *Client) NetworkDisconnect(networkName, containerName string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	_, err := c.cli.NetworkDisconnect(ctx, networkName, client.NetworkDisconnectOptions{
+		Container: containerName,
+		Force:     false,
+	})
+	if err != nil {
+		return fmt.Errorf("error desconectando %s de %s: %w", containerName, networkName, err)
+	}
+	return nil
+}
+
+func (c *Client) NetworkConnect(networkName, containerName string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	_, err := c.cli.NetworkConnect(ctx, networkName, client.NetworkConnectOptions{
+		Container: containerName,
+	})
+	if err != nil {
+		return fmt.Errorf("error conectando %s a %s: %w", containerName, networkName, err)
+	}
+	return nil
 }

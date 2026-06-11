@@ -3,6 +3,37 @@
 Todos los cambios notables de este proyecto se documentan aquí.
 
 ---
+
+## [1.9.0] - 2026-06-11 — "Oe, que buenas camaras csm"
+
+### Añadido
+
+- Nuevo comando `wachiman monitor` — supervisor activo de contenedores
+  - Detecta cambios de estado en tiempo real con intervalo configurable (`--interval`)
+  - Modo activo: reinicia automáticamente contenedores caídos
+  - Modo observación (`--no-restart`): solo notifica sin actuar
+  - Filtro por contenedor (`--only nginx,db`) para monitoreo selectivo
+  - Anti-spam: compara estado simplificado (`running`/`stopped`) en vez del string completo del status
+- Nuevo comando `wachiman network` con subcomandos para gestión de redes
+  - `wachiman network ls` — lista todas las redes con driver y scope
+  - `wachiman network inspect [nombre]` — detalles de una red: subnet, gateway, contenedores con IPs
+  - `wachiman network connect [red] [contenedor]` — conecta un contenedor a una red
+  - `wachiman network disconnect [red] [contenedor]` — desconecta un contenedor de una red
+- Progreso visual en `wachiman backup` con spinner, velocidad de transferencia y tamaño final
+  - Usa `io.MultiWriter` para escribir al archivo y actualizar la barra simultáneamente
+  - Sin tamaño conocido de antemano — spinner en modo indeterminado
+
+### Archivos modificados
+
+- `cmd/monitor.go` — nuevo comando de supervisión activa
+- `cmd/network.go` — nuevo comando de gestión de redes con 4 subcomandos
+- `cmd/backup.go` — progreso visual con `schollz/progressbar`
+- `docker/client.go` — nuevas funciones `ListNetworks`, `InspectNetwork`, `NetworkConnect`, `NetworkDisconnect`
+- `docs/commands.md` — documentación de `monitor` y `network`
+- `main.go` — registro de `MonitorCmd` y `NetworkCmd`
+
+---
+
 ## [1.5.0] - 2026-06-10 — "Llaves y linterna, supongo que para guardar las cosas en la bodega"
 
 ### Añadido
@@ -25,6 +56,7 @@ Todos los cambios notables de este proyecto se documentan aquí.
 - `docker/client.go` — refactorización del método `Inspect` y abstracción de la estructura de volúmenes.
 - `main.go` — registro de los nuevos comandos en el CLI raíz.
 
+---
 ## [1.0.0] - 2026-06-08 — "Ahora si, ya estoy listo pa chambear"
 
 ### Añadido
@@ -47,7 +79,7 @@ Todos los cambios notables de este proyecto se documentan aquí.
   - `config/config.go` — nuevo paquete para carga/guardado de config en `~/.wachiman/config.json`.
   - `main.go` — registro de `ConfigCmd` y banner/ayuda mejorada.
 
-
+---
 ## [0.2.0] - 2026-06-08 — "Seño, pan con palta y su quinua con manzana"
 
 ### Añadido
@@ -58,6 +90,7 @@ Todos los cambios notables de este proyecto se documentan aquí.
 - Header dinámico en `wachiman watch` con conteo de contenedores corriendo vs parados
 - Fix de pantalla en Windows — `cls` en vez de escape codes ANSI para limpiar correctamente
 
+---
 ## [0.1.0] - 2026-06-08 — "Oe wachiman, apura p"
 
 Primera release de Wachiman CLI. Mi causa ha despertado.

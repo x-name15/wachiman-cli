@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 	"github.com/fatih/color"
+	"github.com/schollz/progressbar/v3"
 	"github.com/spf13/cobra"
 	"wachiman/docker"
 )
@@ -34,7 +35,8 @@ var BackupCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		fmt.Printf("%s Inspeccionando contenedor %s...\n", bold(containerName), cyan(containerName))
+
+		fmt.Printf("%s Inspeccionando contenedor %s...\n", bold("→"), cyan(containerName))
 		info, err := client.Inspect(containerName)
 		if err != nil {
 			return err
@@ -47,15 +49,14 @@ var BackupCmd = &cobra.Command{
 			if err := client.Pause(containerName); err != nil {
 				return err
 			}
-
 			defer func() {
 				fmt.Printf("%s Reanudando contenedor...\n", green("▶"))
 				if err := client.Unpause(containerName); err != nil {
-					fmt.Printf("%s Error al reanudar de inmediato: %v\n", red("❌"), err)
+					fmt.Printf("%s Error al reanudar: %v\n", red("❌"), err)
 				}
 			}()
 		} else if info.Status == "running" && noPause {
-			fmt.Printf("%s %s Ejecutando respaldo en caliente (hot backup). La data activa podría ser inconsistente.\n", yellow("⚠"), bold("CUIDADO:"))
+			fmt.Printf("%s %s Ejecutando respaldo en caliente. La data activa podría ser inconsistente.\n", yellow("⚠"), bold("CUIDADO:"))
 		}
 
 		if err := os.MkdirAll(backupOutputDir, 0755); err != nil {
@@ -67,7 +68,6 @@ var BackupCmd = &cobra.Command{
 		if len(info.Volumes) > 0 {
 			fmt.Printf("Se detectaron %d volúmenes montados. Analizando rutas...\n", len(info.Volumes))
 
-			// 1. Extraer y limpiar todas las rutas válidas del contenedor
 			var rawPaths []string
 			for _, v := range info.Volumes {
 				parts := strings.Split(v, " -> ")
@@ -76,12 +76,10 @@ var BackupCmd = &cobra.Command{
 				}
 			}
 
-			// 2. Filtrar subrutas redundantes (ej: no respaldar /a/b si ya se respalda /a)
 			var targetPaths []string
 			for _, p := range rawPaths {
 				isSubPath := false
 				for _, other := range rawPaths {
-					// Aseguramos que termine con "/" para evitar falsos positivos como /var/www-data contra /var/www
 					if p != other && strings.HasPrefix(p, other+"/") {
 						isSubPath = true
 						break
@@ -92,7 +90,6 @@ var BackupCmd = &cobra.Command{
 				}
 			}
 
-			// 3. Procesar solo las rutas optimizadas
 			for i, containerPath := range targetPaths {
 				safePathName := strings.ReplaceAll(strings.Trim(containerPath, "/"), "/", "-")
 				if safePathName == "" {
@@ -102,64 +99,82 @@ var BackupCmd = &cobra.Command{
 				fileName := fmt.Sprintf("%s_%s_%s.tar", containerName, safePathName, timestamp)
 				outputPath := filepath.Join(backupOutputDir, fileName)
 
-				fmt.Printf("   %s Respaldando %s %s ", bold("→"), cyan(containerPath), bold("..."))
+				fmt.Printf("\n%s Respaldando %s\n", bold("→"), cyan(containerPath))
 
 				reader, err := client.CopyFrom(containerName, containerPath)
 				if err != nil {
-					fmt.Println(red("¡FALLÓ!"))
-					return err
+					return fmt.Errorf("%s falló: %w", containerPath, err)
 				}
 
-				err = saveBackupFile(reader, outputPath)
+				size, err := saveBackupFileWithProgress(reader, outputPath, fileName)
 				reader.Close()
 
 				if err != nil {
-					fmt.Println(red("¡FALLÓ AL GUARDAR!"))
-					return err
+					return fmt.Errorf("error guardando %s: %w", fileName, err)
 				}
-				fmt.Println(green("✓ Guardado como " + fileName))
+
+				fmt.Printf("%s Guardado: %s (%s)\n", green("✓"), cyan(fileName), formatSize(size))
 			}
 		} else {
-			fmt.Printf("%s No se encontraron volúmenes. Exportando el sistema raíz (rootfs)...\n", cyan("CD"))
+			fmt.Printf("%s No se encontraron volúmenes. Exportando el sistema raíz (rootfs)...\n", cyan("→"))
 
 			fileName := fmt.Sprintf("%s_rootfs_%s.tar", containerName, timestamp)
 			outputPath := filepath.Join(backupOutputDir, fileName)
 
-			fmt.Printf("   %s Exportando a %s %s ", bold("→"), yellow(fileName), bold("..."))
+			fmt.Printf("\n%s Exportando %s\n", bold("→"), yellow(fileName))
 
 			reader, err := client.Export(containerName)
 			if err != nil {
-				fmt.Println(red("¡FALLÓ!"))
-				return err
+				return fmt.Errorf("export falló: %w", err)
 			}
 
-			err = saveBackupFile(reader, outputPath)
+			size, err := saveBackupFileWithProgress(reader, outputPath, fileName)
 			reader.Close()
 
 			if err != nil {
-				fmt.Println(red("¡FALLÓ AL GUARDAR!"))
-				return err
+				return fmt.Errorf("error guardando %s: %w", fileName, err)
 			}
-			fmt.Println(green("✓ Hecho"))
+
+			fmt.Printf("%s Guardado: %s (%s)\n", green("✓"), cyan(fileName), formatSize(size))
 		}
 
-		fmt.Printf("\n%s %s ¡Respaldo completado con éxito en: %s!\n", green("✓"), bold("Wachiman dice:"), cyan(backupOutputDir))
+		fmt.Printf("\n%s %s Respaldo completado en: %s\n", green("✓"), bold("Wachiman dice:"), cyan(backupOutputDir))
 		return nil
 	},
 }
 
-func saveBackupFile(reader io.Reader, path string) error {
+func saveBackupFileWithProgress(reader io.Reader, path, label string) (int64, error) {
 	outFile, err := os.Create(path)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer outFile.Close()
+	bar := progressbar.NewOptions64(
+		-1,
+		progressbar.OptionSetDescription(label),
+		progressbar.OptionSetWriter(os.Stderr),
+		progressbar.OptionShowBytes(true),
+		progressbar.OptionSpinnerType(14),
+		progressbar.OptionFullWidth(),
+		progressbar.OptionOnCompletion(func() {
+			fmt.Fprint(os.Stderr, "\n")
+		}),
+	)
 
-	_, err = io.Copy(outFile, reader)
-	return err
+	written, err := io.Copy(io.MultiWriter(outFile, bar), reader)
+	bar.Finish()
+	return written, err
+}
+
+func formatSize(b int64) string {
+	mb := float64(b) / 1024 / 1024
+	if mb >= 1024 {
+		return fmt.Sprintf("%.2f GB", mb/1024)
+	}
+	return fmt.Sprintf("%.2f MB", mb)
 }
 
 func init() {
-	BackupCmd.Flags().StringVarP(&backupOutputDir, "output", "o", ".", "Directorio local donde se guardará el archivo .tar")
+	BackupCmd.Flags().StringVarP(&backupOutputDir, "output", "o", ".", "Directorio donde se guardará el archivo .tar")
 	BackupCmd.Flags().BoolVar(&noPause, "no-pause", false, "Hacer respaldo en vivo sin pausar el contenedor")
 }

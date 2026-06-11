@@ -48,6 +48,8 @@ func main() {
 	root.AddCommand(cmd.ShellCmd)
 	root.AddCommand(cmd.ExportComposeCmd)
 	root.AddCommand(cmd.BackupCmd)
+	root.AddCommand(cmd.NetworkCmd)
+	root.AddCommand(cmd.MonitorCmd)
 
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

@@ -235,6 +235,59 @@ Opciones:
 
 ---
 
+## `network` — Gestiona las redes de Docker
+
+### Listar redes
+
+```bash
+wachiman network ls
+```
+
+### Inspeccionar una red
+
+Muestra detalles de una red — subnet, gateway, y contenedores conectados con sus IPs.
+
+```bash
+wachiman network inspect bridge
+wachiman network inspect wordpress_default
+```
+
+### Desconectar un contenedor de una red
+
+```bash
+wachiman network disconnect [red] [contenedor]
+```
+
+Ejemplo:
+
+```bash
+wachiman network disconnect wordpress_default wordpress_app
+```
+
+### Conectar un contenedor a una red
+
+```bash
+wachiman network connect [red] [contenedor]
+```
+
+Ejemplo:
+
+```bash
+wachiman network connect bridge wordpress_app
+```
+
+Subcomandos disponibles:
+
+| Subcomando   | Descripción                                    |
+| ------------ | ---------------------------------------------- |
+| `ls`         | Lista todas las redes                          |
+| `inspect`    | Muestra detalles de una red específica         |
+| `connect`    | Conecta un contenedor a una red                |
+| `disconnect` | Desconecta un contenedor de una red            |
+
+> ⚠️ Desconectar un contenedor de su red puede interrumpir su comunicación con otros servicios.
+
+---
 ## `audit` — Auditoría de seguridad
 
 Analiza configuraciones potencialmente inseguras de un contenedor.
@@ -337,6 +390,44 @@ Subcomandos disponibles:
 
 ---
 
+## `monitor` — Monitorea y reinicia contenedores caídos
+
+Vigila el estado de los contenedores en tiempo real. Si detecta que uno se cayó, lo reinicia automáticamente.
+
+```bash
+wachiman monitor
+```
+
+Solo observar sin reiniciar:
+
+```bash
+wachiman monitor --no-restart
+```
+
+Intervalo personalizado:
+
+```bash
+wachiman monitor --interval 10
+wachiman monitor -i 10
+```
+
+Monitorear contenedores específicos:
+
+```bash
+wachiman monitor --only wordpress_app,wordpress_db
+```
+
+Opciones:
+
+| Flag            | Descripción                                        |
+| --------------- | -------------------------------------------------- |
+| `-i, --interval`| Intervalo de chequeo en segundos (por defecto: 5)  |
+| `--no-restart`  | Solo observar, no reiniciar contenedores caídos    |
+| `--only`        | Contenedores a monitorear (separados por coma)     |
+
+> ⚠️ El modo activo reinicia automáticamente cualquier contenedor que se detenga. Usa `--no-restart` si solo quieres observar.
+
+---
 ## Ayuda
 
 Ayuda general:
