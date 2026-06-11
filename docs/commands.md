@@ -428,6 +428,16 @@ Opciones:
 > ⚠️ El modo activo reinicia automáticamente cualquier contenedor que se detenga. Usa `--no-restart` si solo quieres observar.
 
 ---
+
+## `version` — Muestra la versión actual
+
+```bash
+wachiman version
+```
+
+Muestra la versión instalada de wachiman.
+
+---
 ## Ayuda
 
 Ayuda general:

@@ -50,6 +50,7 @@ func main() {
 	root.AddCommand(cmd.BackupCmd)
 	root.AddCommand(cmd.NetworkCmd)
 	root.AddCommand(cmd.MonitorCmd)
+	root.AddCommand(cmd.VersionCmd)
 
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

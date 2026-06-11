@@ -4,6 +4,30 @@ Todos los cambios notables de este proyecto se documentan aquí.
 
 ---
 
+## [1.9.5] - 2026-06-11 — "Nicagando graba en esa calidad la wbda"
+
+### Añadido
+
+- Nuevo comando `wachiman version` — muestra la versión instalada del CLI
+- Workflow de GitHub Actions para releases automáticas en push a `main`
+  - Detecta la versión desde el `CHANGELOG.md` automáticamente
+  - Actualiza el badge y links de versión en `README.md`
+  - Compila binarios para Windows, Linux, macOS Intel y Apple Silicon
+  - Sube binarios y ZIP del código fuente a GitHub Releases
+  - Incluye las notas del CHANGELOG en el body de la release
+
+### Archivos añadidos
+
+- `cmd/version.go` — nuevo comando `version`
+- `.github/workflows/release.yml` — workflow de release automática
+
+### Archivos modificados
+
+- `main.go` — registro de `VersionCmd`
+- `docs/commands.md` — documentación del comando `version`
+
+---
+
 ## [1.9.0] - 2026-06-11 — "Oe, que buenas camaras csm"
 
 ### Añadido

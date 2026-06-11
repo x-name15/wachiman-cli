@@ -1,0 +1,111 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Obtener versión del CHANGELOG
+        id: version
+        run: |
+          VERSION=$(grep -m1 '## \[' CHANGELOG.md | sed 's/## \[\([^]]*\)\].*/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Versión detectada: $VERSION"
+
+      - name: Extraer notas del CHANGELOG
+        id: notes
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          NOTES=$(awk "/## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Actualizar README
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          sed -i "s|Release-v[0-9]*\.[0-9]*\.[0-9]*-green|Release-v${VERSION}-green|g" README.md
+          sed -i "s|v[0-9]*\.[0-9]*\.[0-9]* - CHANGE LOG|v${VERSION} - CHANGE LOG|g" README.md
+          sed -i "s|v[0-9]*\.[0-9]*\.[0-9]* - Release notes|v${VERSION} - Release notes|g" README.md
+          sed -i "s|releases/tag/[0-9]*\.[0-9]*\.[0-9]*|releases/tag/${VERSION}|g" README.md
+
+      - name: Commit README actualizado
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git diff --staged --quiet || git commit -m "chore: actualizar versión a v${{ steps.version.outputs.version }} en README"
+          git push
+
+      - name: Crear tag
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          git tag "v${VERSION}" || echo "Tag ya existe, continuando..."
+          git push origin "v${VERSION}" || echo "Tag ya en remoto, continuando..."
+
+      - name: Build Windows
+        run: GOOS=windows GOARCH=amd64 go build -o dist/wachiman-windows-amd64.exe .
+
+      - name: Build Linux
+        run: GOOS=linux GOARCH=amd64 go build -o dist/wachiman-linux-amd64 .
+
+      - name: Build macOS Intel
+        run: GOOS=darwin GOARCH=amd64 go build -o dist/wachiman-darwin-amd64 .
+
+      - name: Build macOS Apple Silicon
+        run: GOOS=darwin GOARCH=arm64 go build -o dist/wachiman-darwin-arm64 .
+
+      - name: Crear ZIP del código fuente
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          zip -r "dist/wachiman-cli-${VERSION}.zip" . \
+            --exclude ".git/*" \
+            --exclude ".github/*" \
+            --exclude "dist/*" \
+            --exclude "*.exe"
+
+      - name: Crear GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          body: |
+            ${{ steps.notes.outputs.notes }}
+
+            ---
+            ## Descargas
+
+            | Sistema | Archivo |
+            |---------|---------|
+            | Windows x64 | `wachiman-windows-amd64.exe` |
+            | Linux x64 | `wachiman-linux-amd64` |
+            | macOS Intel | `wachiman-darwin-amd64` |
+            | macOS Apple Silicon | `wachiman-darwin-arm64` |
+
+            Ver [CHANGELOG completo](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)
+          files: |
+            dist/wachiman-windows-amd64.exe
+            dist/wachiman-linux-amd64
+            dist/wachiman-darwin-amd64
+            dist/wachiman-darwin-arm64
+            dist/wachiman-cli-${{ steps.version.outputs.version }}.zip
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
