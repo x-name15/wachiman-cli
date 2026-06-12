@@ -46,6 +46,11 @@ jobs:
           echo "title=$TITLE" >> $GITHUB_OUTPUT
           echo "Título detectado: $TITLE"
 
+      - name: Update version in version.go
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          sed -i "s/const Version = \"[^\"]*\"/const Version = \"${VERSION}\"/" cmd/version.go
+
       - name: Update the README file
         run: |
           VERSION="${{ steps.version.outputs.version }}"
@@ -54,12 +59,12 @@ jobs:
           sed -i "s|v[0-9]*\.[0-9]*\.[0-9]* - Release notes|v${VERSION} - Release notes|g" README.md
           sed -i "s|releases/tag/[0-9]*\.[0-9]*\.[0-9]*|releases/tag/${VERSION}|g" README.md
 
-      - name: Commit README changes
+      - name: Commit updated files
         run: |
           git config user.name "wachiman-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add README.md
-          git diff --staged --quiet || git commit -m "chore: actualizar versión a v${{ steps.version.outputs.version }} en README"
+          git add README.md cmd/version.go
+          git diff --staged --quiet || git commit -m "chore: actualizar versión a v${{ steps.version.outputs.version }}"
           git push
 
       - name: Create tag
