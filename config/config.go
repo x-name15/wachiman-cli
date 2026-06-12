@@ -11,12 +11,16 @@ type Config struct {
 	WatchInterval int    `json:"watch_interval"`
 	DefaultTail   int    `json:"default_tail"`
 	OutputFormat  string `json:"output_format"`
+	WebhookURL    string `json:"webhook_url"`
+	WebhookType   string `json:"webhook_type"` // "slack" o "discord"
 }
 
-var defaults = Config{
+var Defaults = Config{
 	WatchInterval: 3,
 	DefaultTail:   50,
 	OutputFormat:  "table",
+	WebhookURL:    "",
+	WebhookType:   "",
 }
 
 func configPath() (string, error) {
@@ -30,18 +34,18 @@ func configPath() (string, error) {
 func Load() (*Config, error) {
 	path, err := configPath()
 	if err != nil {
-		return &defaults, nil
+		return &Defaults, nil
 	}
 
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return &defaults, nil
+			return &Defaults, nil
 		}
 		return nil, fmt.Errorf("error leyendo config: %w", err)
 	}
 
-	cfg := defaults
+	cfg := Defaults
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("config.json inválido: %w", err)
 	}
@@ -104,8 +108,17 @@ func Set(key, value string) error {
 		}
 		cfg.OutputFormat = value
 
+	case "webhook_url":
+		cfg.WebhookURL = value
+
+	case "webhook_type":
+		if value != "slack" && value != "discord" && value != "" {
+			return fmt.Errorf("webhook_type debe ser 'slack' o 'discord'")
+		}
+		cfg.WebhookType = value
+
 	default:
-		return fmt.Errorf("campo desconocido: %q — opciones: watch_interval, default_tail, output_format", key)
+		return fmt.Errorf("campo desconocido: %q — opciones: watch_interval, default_tail, output_format, webhook_url, webhook_type", key)
 	}
 
 	return Save(cfg)

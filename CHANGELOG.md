@@ -4,6 +4,35 @@ Todos los cambios notables de este proyecto se documentan aquí.
 
 ---
 
+## [1.9.9] - 2026-06-11 — "Achucha, ahora puedo avisar por radio si encuentro algo"
+
+### Añadido
+
+- `wachiman monitor` ahora soporta notificaciones via webhook
+  - Compatible con Slack (incoming webhook) y Discord
+  - Notifica cuando un contenedor se cae, cuando es reiniciado, y cuando vuelve a estar activo
+  - Notificaciones asíncronas — no bloquean el monitor si el webhook tarda
+  - Se activa configurando `webhook_url` y `webhook_type` en la config
+- Nuevo paquete interno `internal/webhook` — notifier genérico para Slack y Discord
+  - Slack: bloques con sección y contexto
+  - Discord: embeds con color según severidad (verde para ok, rojo para caído)
+- `wachiman audit` mejorado con tres checks nuevos:
+  - **Secrets en variables de entorno** — detecta `PASSWORD`, `TOKEN`, `SECRET`, `API_KEY` y similares en texto plano
+  - **Imagen con tag `latest`** — advierte sobre falta de reproducibilidad y riesgos de seguridad
+  - **Flag `--fix`** — intenta corregir automáticamente lo que sea posible (límite de memoria por defecto: 512MB)
+- `config` ampliado con dos campos nuevos:
+  - `webhook_url` — URL del webhook de Slack o Discord
+  - `webhook_type` — tipo de webhook (`slack` o `discord`)
+
+### Archivos modificados
+
+- `cmd/audit.go` — checks de secrets, tag latest, y flag `--fix`
+- `cmd/monitor.go` — integración de notificaciones via webhook
+- `config/config.go` — campos `WebhookURL` y `WebhookType`
+- `docker/client.go` — nuevo método `SetMemoryLimit`
+- `internal/webhook/webhook.go` — nuevo paquete de notificaciones
+
+---
 ## [1.9.5] - 2026-06-11 — "Nicagando graba en esa calidad la wbda"
 
 ### Añadido

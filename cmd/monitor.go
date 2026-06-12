@@ -8,9 +8,12 @@ import (
 	"syscall"
 	"text/tabwriter"
 	"time"
+
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+	"wachiman/config"
 	"wachiman/docker"
+	"wachiman/internal/webhook"
 )
 
 var (
@@ -23,6 +26,11 @@ var MonitorCmd = &cobra.Command{
 	Use:   "monitor",
 	Short: "Monitorea contenedores y los reinicia si se caen",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg, err := config.Load()
+		if err != nil {
+			return err
+		}
+
 		client, err := docker.New()
 		if err != nil {
 			return err
@@ -45,6 +53,9 @@ var MonitorCmd = &cobra.Command{
 		} else {
 			fmt.Printf("%s Modo activo — contenedores caídos serán reiniciados automáticamente\n", cyan("●"))
 		}
+		if cfg.WebhookURL != "" {
+			fmt.Printf("%s Notificaciones via %s activas\n", cyan("👁"), cfg.WebhookType)
+		}
 		if len(filter) > 0 {
 			fmt.Printf("%s Monitoreando: %s\n", bold("→"), strings.Join(filter, ", "))
 		} else {
@@ -66,7 +77,7 @@ var MonitorCmd = &cobra.Command{
 		for {
 			select {
 			case <-ticker.C:
-				runMonitor(client, prevState, filter, monitorNoRestart)
+				runMonitor(client, prevState, filter, monitorNoRestart, cfg.WebhookURL, cfg.WebhookType)
 			case <-sig:
 				fmt.Printf("\n%s wachiman monitor detenido.\n", bold("→"))
 				return nil
@@ -96,7 +107,7 @@ func initMonitor(client *docker.Client, prevState map[string]string, filter []st
 	}
 }
 
-func runMonitor(client *docker.Client, prevState map[string]string, filter []string, noRestart bool) {
+func runMonitor(client *docker.Client, prevState map[string]string, filter []string, noRestart bool, webhookURL, webhookType string) {
 	containers, err := client.List()
 	if err != nil {
 		fmt.Printf("error listando contenedores: %v\n", err)
@@ -132,7 +143,6 @@ func runMonitor(client *docker.Client, prevState map[string]string, filter []str
 			continue
 		}
 
-		// Comparamos estado simplificado — no el string completo
 		if prev == current {
 			continue
 		}
@@ -147,6 +157,13 @@ func runMonitor(client *docker.Client, prevState map[string]string, filter []str
 				green("volvió a estar activo"),
 			)
 			w.Flush()
+
+			go webhook.Send(
+				webhookURL,
+				webhookType,
+				fmt.Sprintf("✓ %s volvió a estar activo", c.Name),
+				fmt.Sprintf("El contenedor está respondiendo con normalidad.\nHora: %s", timestamp),
+			)
 		} else {
 			fmt.Fprintf(w, "%s\t%s %s\t%s\n",
 				cyan(timestamp),
@@ -155,6 +172,13 @@ func runMonitor(client *docker.Client, prevState map[string]string, filter []str
 				red(c.Status),
 			)
 			w.Flush()
+
+			go webhook.Send(
+				webhookURL,
+				webhookType,
+				fmt.Sprintf("● %s está CAÍDO", c.Name),
+				fmt.Sprintf("Estado: %s\nHora: %s", c.Status, timestamp),
+			)
 
 			if !noRestart {
 				fmt.Fprintf(w, "%s\t  %s Reiniciando %s...\n",
@@ -170,14 +194,29 @@ func runMonitor(client *docker.Client, prevState map[string]string, filter []str
 						red("✗"),
 						err,
 					)
+					w.Flush()
+
+					go webhook.Send(
+						webhookURL,
+						webhookType,
+						fmt.Sprintf("✗ Error al reiniciar %s", c.Name),
+						fmt.Sprintf("No se pudo reiniciar el contenedor.\nError: %v\nHora: %s", err, timestamp),
+					)
 				} else {
 					fmt.Fprintf(w, "%s\t  %s %s reiniciado correctamente\n",
 						cyan(timestamp),
 						green("✓"),
 						bold(c.Name),
 					)
+					w.Flush()
+
+					go webhook.Send(
+						webhookURL,
+						webhookType,
+						fmt.Sprintf("↺ %s reiniciado automáticamente", c.Name),
+						fmt.Sprintf("El contenedor fue reiniciado por wachiman.\nHora: %s", timestamp),
+					)
 				}
-				w.Flush()
 			}
 		}
 	}

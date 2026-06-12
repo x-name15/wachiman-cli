@@ -31,7 +31,6 @@ var WatchCmd = &cobra.Command{
 			return err
 		}
 
-		// Si el usuario no pasó --interval explícitamente, usar el de la config
 		if !cmd.Flags().Changed("interval") {
 			watchInterval = cfg.WatchInterval
 		}
@@ -157,7 +156,6 @@ func renderSparkline(values []float64) string {
 		result += string(sparks[idx])
 	}
 
-	// Color según el último valor
 	last := values[len(values)-1]
 	if last > 80 {
 		return color.RedString(result)

@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"time"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/api/types/container"
 )
 
 type Client struct {
@@ -578,6 +579,23 @@ func (c *Client) NetworkConnect(networkName, containerName string) error {
 	})
 	if err != nil {
 		return fmt.Errorf("error conectando %s a %s: %w", containerName, networkName, err)
+	}
+	return nil
+}
+func (c *Client) SetMemoryLimit(nameOrID string, limitBytes int64) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	resources := container.Resources{
+		Memory: limitBytes,
+		MemorySwap: -1,
+	}
+
+	_, err := c.cli.ContainerUpdate(ctx, nameOrID, client.ContainerUpdateOptions{
+		Resources: &resources,
+	})
+	if err != nil {
+		return fmt.Errorf("error actualizando límite de memoria: %w", err)
 	}
 	return nil
 }
