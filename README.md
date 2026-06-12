@@ -5,7 +5,7 @@
 [![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat-square&logo=go)](https://go.dev/)
 [![Docker](https://img.shields.io/badge/Docker-Engine%20%2F%20Desktop-2496ED?style=flat-square&logo=docker)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-GPL%20v3-blue.svg?style=flat-square)](LICENSE)
-[![Latest Release](https://img.shields.io/badge/Release-v1.9.5-green?style=flat-square)](https://github.com/x-name15/wachiman-cli/releases)
+[![Latest Release](https://img.shields.io/badge/Release-v1.9.9-green?style=flat-square)](https://github.com/x-name15/wachiman-cli/releases)
 
 ![wachiman](images/wachiman.png)
 
@@ -59,5 +59,5 @@ GNU GENERAL PUBLIC LICENSE Version 3
 ## Changelog
 
 Se añadió un registro de cambios (changelog) a este `README.md`. Consulta la última versión y notas de la release en:
-- [v1.9.5 - CHANGE LOG](CHANGELOG.md)
-- [v1.9.5 - Release notes](https://github.com/x-name15/wachiman-cli/releases/tag/1.9.5)
+- [v1.9.9 - CHANGE LOG](CHANGELOG.md)
+- [v1.9.9 - Release notes](https://github.com/x-name15/wachiman-cli/releases/tag/1.9.9)
