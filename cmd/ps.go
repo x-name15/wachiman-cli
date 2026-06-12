@@ -45,7 +45,6 @@ var PsCmd = &cobra.Command{
 			return nil
 		}
 
-		// JSON output
 		if outputFormat == "json" {
 			data, err := json.MarshalIndent(containers, "", "  ")
 			if err != nil {

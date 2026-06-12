@@ -4,6 +4,40 @@ Todos los cambios notables de este proyecto se documentan aquí.
 
 ---
 
+## [2.0.0] - 2026-06-11 — "Y este chaleco? que ahora me van a distinguir asi?"
+
+### Añadido
+
+- Nuevo comando `wachiman image` — gestión completa de imágenes Docker
+  - `wachiman image ls` — lista imágenes con tamaño, fecha y contenedores asociados
+  - `wachiman image ls --dangling` — solo imágenes huérfanas sin contenedor
+  - `wachiman image pull [imagen]` — pullea una imagen desde el registry
+  - `wachiman image rm [imagen]` — elimina una imagen con flag `--force`
+
+- Nuevo comando `wachiman diff [nombre]` — archivos modificados dentro de un contenedor desde que arrancó
+  - Clasifica cambios en añadidos (A), modificados (M) y eliminados (D)
+  - Muestra resumen con conteo por tipo al final
+
+- Nuevo comando `wachiman compose` — gestiona docker compose desde el directorio actual
+  - Detecta automáticamente `docker-compose.yml`, `docker-compose.yaml`, `compose.yml`, `compose.yaml`
+  - Intenta `docker compose` primero y cae en `docker-compose` si no está disponible
+  - Subcomandos: `up`, `down`, `ps`, `logs`, `restart`, `pull`, `build`
+  - `up --detach` / `-d` para arrancar en background
+  - `down --volumes` / `-v` para eliminar volúmenes también
+  - `logs --tail` / `-t` para controlar líneas mostradas
+
+### Archivos añadidos
+
+- `cmd/image.go` — nuevo comando de gestión de imágenes
+- `cmd/diff.go` — nuevo comando de diff de filesystem
+- `cmd/compose.go` — nuevo comando de gestión de compose
+
+### Archivos modificados
+
+- `docker/client.go` — nuevas funciones `ListImages`, `RemoveImage`, `PullImage`, `Diff`
+- `main.go` — registro de `ImageCmd`, `DiffCmd`, `ComposeCmd`
+
+---
 ## [1.9.9] - 2026-06-11 — "Achucha, ahora puedo avisar por radio si encuentro algo"
 
 ### Añadido

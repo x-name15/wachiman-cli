@@ -51,6 +51,9 @@ func main() {
 	root.AddCommand(cmd.NetworkCmd)
 	root.AddCommand(cmd.MonitorCmd)
 	root.AddCommand(cmd.VersionCmd)
+	root.AddCommand(cmd.ImageCmd)
+	root.AddCommand(cmd.DiffCmd)
+	root.AddCommand(cmd.ComposeCmd)
 
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

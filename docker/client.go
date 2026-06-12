@@ -96,6 +96,19 @@ type NetworkDetail struct {
 	Containers []NetworkContainer
 }
 
+type Image struct {
+	ID         string
+	Tags       []string
+	Size       int64
+	Created    int64
+	Containers int64
+}
+
+type FileChange struct {
+	Kind string
+	Path string
+}
+
 func New() (*Client, error) {
 	cli, err := client.New(client.FromEnv)
 	if err != nil {
@@ -261,7 +274,6 @@ func calcCPU(data map[string]interface{}) float64 {
 	preTotalUsage := preCPUUsage["total_usage"].(float64)
 	systemUsage := cpuStats["system_cpu_usage"].(float64)
 
-	// precpu_stats no tiene system_cpu_usage en snapshot único — usamos 0
 	preSystemUsage := 0.0
 	if v, ok := preCPU["system_cpu_usage"]; ok {
 		preSystemUsage = v.(float64)
@@ -504,7 +516,6 @@ func (c *Client) ListNetworks() ([]Network, error) {
 	networks := make([]Network, 0, len(result.Items))
 	for _, n := range result.Items {
 		containers := []NetworkContainer{}
-		// Summary embebe Network, no tiene Containers — eso solo está en Inspect
 		networks = append(networks, Network{
 			ID:         n.ID[:12],
 			Name:       n.Name,
@@ -525,7 +536,6 @@ func (c *Client) InspectNetwork(nameOrID string) (*NetworkDetail, error) {
 		return nil, fmt.Errorf("error inspeccionando red %s: %w", nameOrID, err)
 	}
 
-	// Los campos están en result.Network que embebe network.Inspect → network.Network
 	n := result.Network
 
 	subnet := ""
@@ -598,4 +608,94 @@ func (c *Client) SetMemoryLimit(nameOrID string, limitBytes int64) error {
 		return fmt.Errorf("error actualizando límite de memoria: %w", err)
 	}
 	return nil
+}
+
+func (c *Client) ListImages(dangling bool) ([]Image, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	opts := client.ImageListOptions{}
+
+	if dangling {
+		opts.Filters = client.Filters{}
+		opts.Filters.Add("dangling", "true")
+	}
+
+	result, err := c.cli.ImageList(ctx, opts)
+	if err != nil {
+		return nil, fmt.Errorf("error listando imágenes: %w", err)
+	}
+
+	images := make([]Image, 0, len(result.Items))
+	for _, img := range result.Items {
+		tags := img.RepoTags
+		if len(tags) == 0 {
+			tags = []string{"<none>:<none>"}
+		}
+		images = append(images, Image{
+			ID:         img.ID[7:19],
+			Tags:       tags,
+			Size:       img.Size,
+			Created:    img.Created,
+			Containers: img.Containers,
+		})
+	}
+	return images, nil
+}
+
+func (c *Client) RemoveImage(imageID string, force bool) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	_, err := c.cli.ImageRemove(ctx, imageID, client.ImageRemoveOptions{
+		Force:         force,
+		PruneChildren: true,
+	})
+	if err != nil {
+		return fmt.Errorf("error eliminando imagen %s: %w", imageID, err)
+	}
+	return nil
+}
+
+func (c *Client) PullImage(ref string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	resp, err := c.cli.ImagePull(ctx, ref, client.ImagePullOptions{})
+	if err != nil {
+		return fmt.Errorf("error pulleando imagen %s: %w", ref, err)
+	}
+	defer resp.Close()
+	if err := resp.Wait(ctx); err != nil {
+		return fmt.Errorf("error durante el pull de %s: %w", ref, err)
+	}
+	return nil
+}
+
+func (c *Client) Diff(nameOrID string) ([]FileChange, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	result, err := c.cli.ContainerDiff(ctx, nameOrID, client.ContainerDiffOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("error obteniendo diff de %s: %w", nameOrID, err)
+	}
+
+	changes := make([]FileChange, 0, len(result.Changes))
+	for _, ch := range result.Changes {
+		kind := "M" // Modified
+		switch ch.Kind {
+		case 0:
+			kind = "M"
+		case 1:
+			kind = "A"
+		case 2:
+			kind = "D"
+		}
+		changes = append(changes, FileChange{
+			Kind: kind,
+			Path: ch.Path,
+		})
+	}
+	return changes, nil
 }

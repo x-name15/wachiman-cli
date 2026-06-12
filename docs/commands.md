@@ -429,6 +429,213 @@ Opciones:
 
 ---
 
+## `image` — Gestión de imágenes Docker
+
+Permite listar, descargar y eliminar imágenes Docker.
+
+### Listar imágenes
+
+```bash
+wachiman image ls
+```
+
+Muestra:
+
+* Nombre de la imagen
+* Tag
+* Tamaño
+* Fecha de creación
+* Contenedores asociados
+
+### Mostrar solo imágenes huérfanas
+
+```bash
+wachiman image ls --dangling
+```
+
+Muestra únicamente imágenes sin uso asociadas a ningún contenedor.
+
+### Descargar una imagen
+
+```bash
+wachiman image pull nginx:latest
+```
+
+### Eliminar una imagen
+
+```bash
+wachiman image rm nginx:latest
+```
+
+Forzar eliminación:
+
+```bash
+wachiman image rm nginx:latest --force
+```
+
+Opciones:
+
+| Flag      | Descripción                                   |
+| ----------| --------------------------------------------- |
+| `--dangling` | Mostrar únicamente imágenes huérfanas      |
+| `--force` | Forzar eliminación de la imagen               |
+
+Subcomandos disponibles:
+
+| Subcomando | Descripción                          |
+| ---------- | ------------------------------------ |
+| `ls`       | Lista imágenes Docker                |
+| `pull`     | Descarga una imagen desde un registry|
+| `rm`       | Elimina una imagen                   |
+
+---
+
+## `diff` — Cambios dentro de un contenedor
+
+Muestra los cambios realizados en el sistema de archivos de un contenedor desde que fue iniciado.
+
+```bash
+wachiman diff wordpress_app
+```
+
+La salida clasifica los cambios por tipo:
+
+| Código | Descripción |
+| ------- | ----------- |
+| `A`     | Archivo añadido |
+| `M`     | Archivo modificado |
+| `D`     | Archivo eliminado |
+
+Ejemplo:
+
+```text
+A /var/www/html/plugin.zip
+M /etc/nginx/nginx.conf
+D /tmp/cache.tmp
+```
+
+Al finalizar se muestra un resumen:
+
+```text
+Resumen:
+  Añadidos: 3
+  Modificados: 8
+  Eliminados: 1
+```
+
+---
+
+## `compose` — Gestión de Docker Compose
+
+Gestiona proyectos Docker Compose desde el directorio actual.
+
+Detecta automáticamente cualquiera de los siguientes archivos:
+
+```text
+docker-compose.yml
+docker-compose.yaml
+compose.yml
+compose.yaml
+```
+
+Intenta utilizar:
+
+```bash
+docker compose
+```
+
+y si no está disponible, utiliza:
+
+```bash
+docker-compose
+```
+
+### Levantar servicios
+
+```bash
+wachiman compose up
+```
+
+Modo background:
+
+```bash
+wachiman compose up --detach
+wachiman compose up -d
+```
+
+### Detener servicios
+
+```bash
+wachiman compose down
+```
+
+Eliminar también los volúmenes:
+
+```bash
+wachiman compose down --volumes
+wachiman compose down -v
+```
+
+### Estado de servicios
+
+```bash
+wachiman compose ps
+```
+
+### Ver logs
+
+```bash
+wachiman compose logs
+```
+
+Mostrar las últimas líneas:
+
+```bash
+wachiman compose logs --tail 100
+wachiman compose logs -t 100
+```
+
+### Reiniciar servicios
+
+```bash
+wachiman compose restart
+```
+
+### Actualizar imágenes
+
+```bash
+wachiman compose pull
+```
+
+### Construir imágenes
+
+```bash
+wachiman compose build
+```
+
+Subcomandos disponibles:
+
+| Subcomando | Descripción |
+| ---------- | ----------- |
+| `up`       | Levanta los servicios |
+| `down`     | Detiene los servicios |
+| `ps`       | Muestra el estado de los servicios |
+| `logs`     | Muestra los logs del proyecto |
+| `restart`  | Reinicia los servicios |
+| `pull`     | Actualiza imágenes |
+| `build`    | Construye imágenes |
+
+Opciones:
+
+| Flag | Descripción |
+| ------ | ----------- |
+| `-d, --detach` | Ejecuta `up` en segundo plano |
+| `-v, --volumes` | Elimina volúmenes al ejecutar `down` |
+| `-t, --tail` | Número de líneas a mostrar en `logs` |
+
+> ⚠️ Todos los comandos se ejecutan sobre el archivo Compose detectado automáticamente en el directorio actual.
+
+---
 ## `version` — Muestra la versión actual
 
 ```bash

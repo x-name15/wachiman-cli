@@ -8,7 +8,6 @@ import (
 	"syscall"
 	"text/tabwriter"
 	"time"
-
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"wachiman/config"
